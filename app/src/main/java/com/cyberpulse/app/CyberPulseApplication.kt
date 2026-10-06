@@ -2,6 +2,7 @@ package com.cyberpulse.app
 
 import android.app.Application
 import com.cyberpulse.app.work.AlertNotifier
+import com.cyberpulse.app.work.DailyBriefingWorker
 import com.cyberpulse.app.work.RefreshWorker
 
 class CyberPulseApplication : Application() {
@@ -11,7 +12,8 @@ class CyberPulseApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         graph = AppGraph(this)
-        AlertNotifier.createChannel(this)
+        AlertNotifier.createChannels(this)
         RefreshWorker.schedule(this)
+        DailyBriefingWorker.schedule(this, graph.settings, replace = false)
     }
 }

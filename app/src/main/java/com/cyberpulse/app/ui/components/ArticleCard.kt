@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.cyberpulse.app.data.db.Article
 import com.cyberpulse.app.domain.ItemKind
+import com.cyberpulse.app.domain.bodyWithoutHeadline
 import com.cyberpulse.app.domain.SystemType
 import com.cyberpulse.app.domain.VulnPolicy
 import com.cyberpulse.app.domain.WatchLevel
@@ -109,7 +110,7 @@ fun ArticleCard(
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
-            val body = summaryWithoutHeadline(article)
+            val body = bodyWithoutHeadline(article.title, article.summary, article.kind == ItemKind.CVE)
             if (body.isNotBlank()) {
                 Text(
                     body,
@@ -190,19 +191,6 @@ fun Pill(text: String, color: Color, filled: Boolean = false) {
             .border(1.dp, color)
             .padding(horizontal = 5.dp, vertical = 1.dp),
     )
-}
-
-private val SENTENCE_BREAK = Regex("(?<=[.!?])\\s+")
-
-/** CVE titles are the description's first sentence; don't repeat it in the body. */
-private fun summaryWithoutHeadline(article: Article): String {
-    if (article.summary == article.title) return ""
-    val headline = article.title.removeSuffix("…")
-    return if (article.kind == ItemKind.CVE && headline.length >= 20 && article.summary.startsWith(headline)) {
-        article.summary.split(SENTENCE_BREAK, limit = 2).getOrNull(1).orEmpty()
-    } else {
-        article.summary
-    }
 }
 
 private fun relativeTime(millis: Long): String =

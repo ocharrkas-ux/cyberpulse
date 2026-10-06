@@ -37,6 +37,12 @@ interface ArticleDao {
     @Query("SELECT * FROM articles WHERE id IN (:ids)")
     suspend fun getByIds(ids: List<String>): List<Article>
 
+    @Query("SELECT * FROM articles WHERE publishedAt >= :since ORDER BY publishedAt DESC")
+    suspend fun getSince(since: Long): List<Article>
+
+    @Query("SELECT * FROM articles WHERE publishedAt >= :since ORDER BY publishedAt DESC")
+    fun observeSince(since: Long): Flow<List<Article>>
+
     @Query("SELECT COUNT(*) FROM articles")
     suspend fun count(): Int
 
@@ -48,6 +54,10 @@ interface ArticleDao {
 
     @Query("DELETE FROM articles WHERE publishedAt < :cutoff")
     suspend fun deleteOlderThan(cutoff: Long)
+
+    /** Raw CVE records pile up fast (~750/day), so they expire sooner unless actively exploited. */
+    @Query("DELETE FROM articles WHERE kind = 'CVE' AND knownExploited = 0 AND publishedAt < :cutoff")
+    suspend fun deleteCvesOlderThan(cutoff: Long)
 }
 
 @Database(entities = [Article::class], version = 1, exportSchema = false)

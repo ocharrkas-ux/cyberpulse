@@ -23,7 +23,7 @@ class MainActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.BLACK),
         )
-        handleIntent(intent)
+        if (savedInstanceState == null) handleIntent(intent)
         setContent {
             CyberPulseTheme {
                 CyberPulseRoot(viewModel)
@@ -37,8 +37,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        if (intent?.getBooleanExtra(AlertNotifier.EXTRA_OPEN_VULNS, false) == true) {
-            viewModel.selectTab(Tab.VULNS)
+        when {
+            intent == null -> Unit
+            intent.getBooleanExtra(AlertNotifier.EXTRA_PLAY_BRIEFING, false) -> viewModel.playBriefingWhenReady()
+            intent.getBooleanExtra(AlertNotifier.EXTRA_OPEN_BRIEFING, false) -> viewModel.selectTab(Tab.BRIEF)
+            intent.getBooleanExtra(AlertNotifier.EXTRA_OPEN_VULNS, false) -> viewModel.selectTab(Tab.VULNS)
         }
     }
 }

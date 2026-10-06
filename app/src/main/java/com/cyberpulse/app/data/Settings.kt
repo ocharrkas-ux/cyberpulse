@@ -34,6 +34,16 @@ class Settings(context: Context) {
     )
     val minSeverity: StateFlow<Severity?> = _minSeverity.asStateFlow()
 
+    private val _speechRate = MutableStateFlow(prefs.getFloat(KEY_SPEECH_RATE, 1f))
+    val speechRate: StateFlow<Float> = _speechRate.asStateFlow()
+
+    private val _briefingEnabled = MutableStateFlow(prefs.getBoolean(KEY_BRIEFING_ENABLED, true))
+    val briefingEnabled: StateFlow<Boolean> = _briefingEnabled.asStateFlow()
+
+    /** Minutes after midnight, local time. Default 07:30. */
+    private val _briefingTime = MutableStateFlow(prefs.getInt(KEY_BRIEFING_TIME, 7 * 60 + 30))
+    val briefingTime: StateFlow<Int> = _briefingTime.asStateFlow()
+
     var lastRefresh: Long
         get() = prefs.getLong(KEY_LAST_REFRESH, 0L)
         set(value) = prefs.edit { putLong(KEY_LAST_REFRESH, value) }
@@ -60,6 +70,21 @@ class Settings(context: Context) {
         _minSeverity.value = severity
     }
 
+    fun setSpeechRate(rate: Float) {
+        prefs.edit { putFloat(KEY_SPEECH_RATE, rate) }
+        _speechRate.value = rate
+    }
+
+    fun setBriefingEnabled(enabled: Boolean) {
+        prefs.edit { putBoolean(KEY_BRIEFING_ENABLED, enabled) }
+        _briefingEnabled.value = enabled
+    }
+
+    fun setBriefingTime(minutesOfDay: Int) {
+        prefs.edit { putInt(KEY_BRIEFING_TIME, minutesOfDay) }
+        _briefingTime.value = minutesOfDay
+    }
+
     private fun loadWatchLevels(): Map<SystemType, WatchLevel> =
         SystemType.entries.associateWith { type ->
             enumOrNull<WatchLevel>(prefs.getString(watchKey(type), null)) ?: WatchLevel.DEFAULT
@@ -75,6 +100,9 @@ class Settings(context: Context) {
         const val KEY_MODE = "notify_mode"
         const val KEY_MIN_SEVERITY = "min_severity"
         const val KEY_LAST_REFRESH = "last_refresh"
+        const val KEY_SPEECH_RATE = "speech_rate"
+        const val KEY_BRIEFING_ENABLED = "briefing_enabled"
+        const val KEY_BRIEFING_TIME = "briefing_time"
         const val ANY = "ANY"
     }
 }

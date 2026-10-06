@@ -2,6 +2,7 @@ package com.cyberpulse.app.ui
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -37,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cyberpulse.app.data.db.Article
 import com.cyberpulse.app.domain.NewsCategory
 import com.cyberpulse.app.domain.VulnPolicy
+import com.cyberpulse.app.ui.screens.BriefingScreen
 import com.cyberpulse.app.ui.screens.NewsScreen
 import com.cyberpulse.app.ui.screens.SystemsScreen
 import com.cyberpulse.app.ui.screens.VulnsScreen
@@ -74,6 +76,7 @@ fun CyberPulseRoot(viewModel: MainViewModel) {
                 title = {
                     GlitchText(
                         when (tab) {
+                            Tab.BRIEF -> "fsociety:~/brief$ "
                             Tab.NEWS -> "fsociety:~/news$ "
                             Tab.VULNS -> "fsociety:~/vulns$ "
                             Tab.SYSTEMS -> "fsociety:~/systems$ "
@@ -98,6 +101,12 @@ fun CyberPulseRoot(viewModel: MainViewModel) {
         bottomBar = {
             HorizontalDivider(color = Fsociety.Line)
             NavigationBar(containerColor = Fsociety.Black, tonalElevation = 0.dp) {
+                NavigationBarItem(
+                    selected = tab == Tab.BRIEF,
+                    onClick = { viewModel.selectTab(Tab.BRIEF) },
+                    icon = { Icon(Icons.Default.DateRange, contentDescription = null) },
+                    label = { Text("brief") },
+                )
                 NavigationBarItem(
                     selected = tab == Tab.NEWS,
                     onClick = { viewModel.selectTab(Tab.NEWS) },
@@ -137,6 +146,12 @@ fun CyberPulseRoot(viewModel: MainViewModel) {
     ) { padding ->
         val modifier = Modifier.padding(padding)
         when (tab) {
+            Tab.BRIEF -> BriefingScreen(
+                viewModel = viewModel,
+                refreshing = refreshing,
+                onOpenLink = { link -> runCatching { uriHandler.openUri(link) } },
+                modifier = modifier,
+            )
             Tab.NEWS -> NewsScreen(
                 articles = articles,
                 watch = watch,

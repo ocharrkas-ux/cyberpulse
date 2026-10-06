@@ -43,6 +43,8 @@ class NewsRepository(
 
     fun observeArticles(): Flow<List<Article>> = dao.observeAll()
 
+    fun observeSince(since: Long): Flow<List<Article>> = dao.observeSince(since)
+
     suspend fun markRead(id: String) = dao.markRead(id)
 
     suspend fun refresh(): RefreshResult = mutex.withLock {
@@ -103,6 +105,7 @@ class NewsRepository(
         }
         merged.chunked(500).forEach { dao.upsertAll(it) }
         dao.deleteOlderThan(retentionCutoff)
+        dao.deleteCvesOlderThan(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(CVE_RETENTION_DAYS))
 
         // "New" also covers a CVE we already had that has just been added to CISA KEV.
         val newItems = if (firstSync) emptyList() else merged.filter { item ->
@@ -190,5 +193,6 @@ class NewsRepository(
         const val NVD_LOOKBACK_DAYS = 3L
         const val KEV_LOOKBACK_DAYS = 30L
         const val RETENTION_DAYS = 30L
+        const val CVE_RETENTION_DAYS = 7L
     }
 }
