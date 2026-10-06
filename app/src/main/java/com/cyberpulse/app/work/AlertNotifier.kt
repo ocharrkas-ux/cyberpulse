@@ -112,7 +112,9 @@ object AlertNotifier {
         val watch = settings.watchLevels.value
         val matches = newItems
             .filter { it.publishedAt >= recentCutoff }
-            .filter { VulnPolicy.shouldNotify(it, watch, settings.notifyMode.value, settings.minSeverity.value) }
+            .filter {
+                VulnPolicy.shouldNotify(it, watch, settings.notifyMode.value, settings.minSeverity.value, settings.topicRules.value)
+            }
             .sortedWith(compareByDescending<Article> { it.knownExploited }.thenByDescending { it.cvssScore ?: 0.0 })
         if (matches.isEmpty()) return
 

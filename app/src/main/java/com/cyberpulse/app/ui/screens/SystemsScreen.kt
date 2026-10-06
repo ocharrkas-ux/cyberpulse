@@ -137,7 +137,7 @@ fun SystemsScreen(viewModel: MainViewModel, articles: List<Article>, modifier: M
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("// briefing topics", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Flagged topics get their own briefing section. Suppressed ones are left out of the briefing and the daily notification, even on flagged systems.",
+                        "Flagged topics get their own briefing section. Suppressed ones are hidden from the briefing, the vulns tab and alerts, even on flagged systems.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

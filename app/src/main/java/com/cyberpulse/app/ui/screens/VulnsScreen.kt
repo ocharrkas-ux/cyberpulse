@@ -33,6 +33,7 @@ import com.cyberpulse.app.domain.ItemKind
 import com.cyberpulse.app.domain.NewsCategory
 import com.cyberpulse.app.domain.Severity
 import com.cyberpulse.app.domain.SystemType
+import com.cyberpulse.app.domain.TopicRules
 import com.cyberpulse.app.domain.VulnPolicy
 import com.cyberpulse.app.domain.WatchLevel
 import com.cyberpulse.app.ui.components.ArticleCard
@@ -48,6 +49,7 @@ private enum class KindFilter(val label: String) {
 fun VulnsScreen(
     articles: List<Article>,
     watch: Map<SystemType, WatchLevel>,
+    topics: TopicRules,
     refreshing: Boolean,
     onRefresh: () -> Unit,
     onOpen: (Article) -> Unit,
@@ -64,7 +66,7 @@ fun VulnsScreen(
     val vulns = remember(articles) { articles.filter { it.category == NewsCategory.VULNERABILITIES } }
     val hasFlags = watch.values.any { it == WatchLevel.FLAGGED }
 
-    val filtered = remember(vulns, watch, mySystemsOnly, exploitedOnly, minSeverity, kind) {
+    val filtered = remember(vulns, watch, topics, mySystemsOnly, exploitedOnly, minSeverity, kind) {
         vulns.filter { a ->
             (!mySystemsOnly || VulnPolicy.isFlagged(a, watch)) &&
                 (!exploitedOnly || a.knownExploited) &&
@@ -76,8 +78,11 @@ fun VulnsScreen(
                 }
         }
     }
-    val suppressedCount = filtered.count { VulnPolicy.isSuppressed(it, watch) }
-    val visible = if (showSuppressed) filtered else filtered.filterNot { VulnPolicy.isSuppressed(it, watch) }
+    val suppressed = remember(filtered, watch, topics) {
+        filtered.mapNotNullTo(hashSetOf()) { if (VulnPolicy.isSuppressed(it, watch, topics)) it.id else null }
+    }
+    val suppressedCount = suppressed.size
+    val visible = if (showSuppressed) filtered else filtered.filterNot { it.id in suppressed }
 
     Column(modifier.fillMaxSize()) {
         LazyRow(

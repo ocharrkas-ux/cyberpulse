@@ -4,6 +4,8 @@ import com.cyberpulse.app.data.db.Article
 import com.cyberpulse.app.domain.BriefingBuilder
 import com.cyberpulse.app.domain.BriefingScript
 import com.cyberpulse.app.domain.ItemKind
+import com.cyberpulse.app.domain.NotifyMode
+import com.cyberpulse.app.domain.VulnPolicy
 import com.cyberpulse.app.domain.NewsCategory
 import com.cyberpulse.app.domain.SectionKind
 import com.cyberpulse.app.domain.Severity
@@ -95,6 +97,33 @@ class TopicsTest {
         val spoken = BriefingScript.build(b, ZoneOffset.UTC).joinToString("\n") { it.text }
         assertTrue(spoken, "Topics you follow." in spoken)
         assertTrue(spoken, "Matches ShinyHunters." in spoken)
+    }
+
+    @Test fun topicSuppressionAppliesToVulnFeedAndAlerts() {
+        val watch = mapOf(SystemType.CLOUD to WatchLevel.FLAGGED)
+        val dell = article("CVE-9", "Dell Container Storage Modules, versions prior to 1.18.0, contain a flaw.",
+            kind = ItemKind.CVE, category = NewsCategory.VULNERABILITIES, systems = setOf(SystemType.CLOUD))
+        val other = article("CVE-10", "Acme Cloud Agent versions before 2.0 allow takeover.",
+            kind = ItemKind.CVE, category = NewsCategory.VULNERABILITIES, systems = setOf(SystemType.CLOUD))
+        val muteDell = rules(Topic(TopicKind.PRODUCT, "Dell Container Storage Modules") to WatchLevel.SUPPRESSED)
+
+        // Without topic rules: both alert and both are visible.
+        assertTrue(VulnPolicy.shouldNotify(dell, watch, NotifyMode.FLAGGED_ONLY, null))
+        assertFalse(VulnPolicy.isSuppressed(dell, watch))
+
+        // Muting the product hides it and silences its alerts, in both notify modes, despite Cloud being flagged.
+        assertTrue(VulnPolicy.isSuppressed(dell, watch, muteDell))
+        assertFalse(VulnPolicy.shouldNotify(dell, watch, NotifyMode.FLAGGED_ONLY, null, muteDell))
+        assertFalse(VulnPolicy.shouldNotify(dell, watch, NotifyMode.ALL_EXCEPT_SUPPRESSED, null, muteDell))
+        assertTrue(VulnPolicy.shouldNotify(other, watch, NotifyMode.FLAGGED_ONLY, null, muteDell))
+
+        // Muting a source silences it too; a flagged keyword overrides the mute.
+        val muteNvdButFollowDell = rules(
+            Topic(TopicKind.SOURCE, "Src") to WatchLevel.SUPPRESSED,
+            Topic(TopicKind.KEYWORD, "Dell") to WatchLevel.FLAGGED,
+        )
+        assertFalse(VulnPolicy.isSuppressed(dell, watch, muteNvdButFollowDell))
+        assertTrue(VulnPolicy.isSuppressed(other, watch, muteNvdButFollowDell))
     }
 
     @Test fun suppressedProductBeatsFlaggedSystemType() {

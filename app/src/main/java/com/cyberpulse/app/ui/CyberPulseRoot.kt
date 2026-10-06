@@ -51,6 +51,7 @@ fun CyberPulseRoot(viewModel: MainViewModel) {
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val tab by viewModel.tab.collectAsStateWithLifecycle()
+    val topics by viewModel.topicRules.collectAsStateWithLifecycle()
 
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(message) {
@@ -67,7 +68,8 @@ fun CyberPulseRoot(viewModel: MainViewModel) {
     }
 
     val unreadFlagged = articles.count {
-        !it.isRead && it.category == NewsCategory.VULNERABILITIES && VulnPolicy.isFlagged(it, watch)
+        !it.isRead && it.category == NewsCategory.VULNERABILITIES &&
+            VulnPolicy.isFlagged(it, watch) && !VulnPolicy.isSuppressed(it, watch, topics)
     }
 
     Scaffold(
@@ -164,6 +166,7 @@ fun CyberPulseRoot(viewModel: MainViewModel) {
             Tab.VULNS -> VulnsScreen(
                 articles = articles,
                 watch = watch,
+                topics = topics,
                 refreshing = refreshing,
                 onRefresh = viewModel::refresh,
                 onOpen = open,

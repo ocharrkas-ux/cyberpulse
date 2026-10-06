@@ -79,8 +79,8 @@ object BriefingBuilder {
         // Specific beats broad: a suppressed topic (e.g. one product) hides an item even on a flagged
         // system type; only a flagged topic overrides it. System suppression applies to vulnerabilities.
         val visible = recent.filterNot { a ->
-            topics.flaggedMatches(a).isEmpty() && (topics.isSuppressed(a) ||
-                (a.category == NewsCategory.VULNERABILITIES && VulnPolicy.isSuppressed(a, watch)))
+            if (a.category == NewsCategory.VULNERABILITIES) VulnPolicy.isSuppressed(a, watch, topics)
+            else topics.flaggedMatches(a).isEmpty() && topics.isSuppressed(a)
         }
         val items = cluster(visible).map { toItem(it, watch, topics) }
 
