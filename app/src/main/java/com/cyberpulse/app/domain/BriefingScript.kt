@@ -53,6 +53,7 @@ object BriefingScript {
             }
             val more = when (section.kind) {
                 SectionKind.YOUR_SYSTEMS -> "affecting your systems"
+                SectionKind.FOLLOWED_TOPICS -> "on topics you follow"
                 SectionKind.EXPLOITED -> "being exploited"
                 SectionKind.CRITICAL -> "critical ones"
                 else -> null // stories continue by category below
@@ -79,6 +80,7 @@ object BriefingScript {
 
     private fun sectionIntro(section: BriefingSection): String = when (section.kind) {
         SectionKind.YOUR_SYSTEMS -> "First, what affects your systems."
+        SectionKind.FOLLOWED_TOPICS -> "Topics you follow."
         SectionKind.EXPLOITED -> "Actively exploited vulnerabilities."
         SectionKind.CRITICAL -> "Other critical vulnerabilities."
         SectionKind.TOP_STORIES -> "Now, the top stories."
@@ -105,6 +107,9 @@ object BriefingScript {
             if (item.systemTypes.isNotEmpty()) {
                 append(" Affects ").append(joinSpoken(item.systemTypes.take(3).map { SPOKEN_SYSTEMS.getValue(it) })).append('.')
             }
+        }
+        if (section.kind == SectionKind.FOLLOWED_TOPICS && item.followedTopics.isNotEmpty()) {
+            append(" Matches ").append(joinSpoken(item.followedTopics.take(2).map { speakable(it.display) })).append('.')
         }
         if (section.kind == SectionKind.TOP_STORIES) {
             firstSentence(item.summary)?.let { append(' ').append(sentence(speakable(it))) }

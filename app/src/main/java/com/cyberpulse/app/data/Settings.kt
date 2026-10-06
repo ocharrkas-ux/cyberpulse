@@ -5,6 +5,10 @@ import androidx.core.content.edit
 import com.cyberpulse.app.domain.NotifyMode
 import com.cyberpulse.app.domain.Severity
 import com.cyberpulse.app.domain.SystemType
+import com.cyberpulse.app.domain.Topic
+import com.cyberpulse.app.domain.TopicKind
+import com.cyberpulse.app.domain.TopicRule
+import com.cyberpulse.app.domain.TopicRules
 import com.cyberpulse.app.domain.WatchLevel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,6 +47,9 @@ class Settings(context: Context) {
     /** Minutes after midnight, local time. Default 07:30. */
     private val _briefingTime = MutableStateFlow(prefs.getInt(KEY_BRIEFING_TIME, 7 * 60 + 30))
     val briefingTime: StateFlow<Int> = _briefingTime.asStateFlow()
+
+    private val _topicRules = MutableStateFlow(loadTopicRules())
+    val topicRules: StateFlow<TopicRules> = _topicRules.asStateFlow()
 
     var lastRefresh: Long
         get() = prefs.getLong(KEY_LAST_REFRESH, 0L)
@@ -85,6 +92,26 @@ class Settings(context: Context) {
         _briefingTime.value = minutesOfDay
     }
 
+    /** [WatchLevel.DEFAULT] removes the rule. */
+    fun setTopicLevel(topic: Topic, level: WatchLevel) {
+        val others = _topicRules.value.rules.filterNot { it.topic.key == topic.key }
+        val updated = if (level == WatchLevel.DEFAULT) others else others + TopicRule(topic, level)
+        prefs.edit {
+            putStringSet(KEY_TOPICS, updated.mapTo(hashSetOf()) { "${it.level.name}\t${it.topic.kind.name}\t${it.topic.value}" })
+        }
+        _topicRules.value = TopicRules(updated)
+    }
+
+    private fun loadTopicRules(): TopicRules = TopicRules(
+        prefs.getStringSet(KEY_TOPICS, emptySet()).orEmpty().mapNotNull { raw ->
+            val parts = raw.split('\t', limit = 3)
+            if (parts.size != 3) return@mapNotNull null
+            val level = enumOrNull<WatchLevel>(parts[0]) ?: return@mapNotNull null
+            val kind = enumOrNull<TopicKind>(parts[1]) ?: return@mapNotNull null
+            TopicRule(Topic(kind, parts[2]), level)
+        }.sortedBy { it.topic.display.lowercase() }
+    )
+
     private fun loadWatchLevels(): Map<SystemType, WatchLevel> =
         SystemType.entries.associateWith { type ->
             enumOrNull<WatchLevel>(prefs.getString(watchKey(type), null)) ?: WatchLevel.DEFAULT
@@ -103,6 +130,7 @@ class Settings(context: Context) {
         const val KEY_SPEECH_RATE = "speech_rate"
         const val KEY_BRIEFING_ENABLED = "briefing_enabled"
         const val KEY_BRIEFING_TIME = "briefing_time"
+        const val KEY_TOPICS = "topic_rules"
         const val ANY = "ANY"
     }
 }

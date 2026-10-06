@@ -24,7 +24,7 @@ class DailyBriefingWorker(context: Context, params: WorkerParameters) : Coroutin
         runCatching { graph.repository.refresh() }
         val now = System.currentTimeMillis()
         val recent = graph.database.articleDao().getSince(now - BriefingBuilder.WINDOW_MILLIS)
-        val briefing = BriefingBuilder.build(recent, graph.settings.watchLevels.value, now)
+        val briefing = BriefingBuilder.build(recent, graph.settings.watchLevels.value, now, topics = graph.settings.topicRules.value)
         if (!briefing.isEmpty) AlertNotifier.notifyDailyBriefing(applicationContext, briefing)
         return Result.success()
     }

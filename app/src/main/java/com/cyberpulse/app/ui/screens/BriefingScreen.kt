@@ -36,7 +36,9 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,6 +53,8 @@ import com.cyberpulse.app.domain.BriefingSection
 import com.cyberpulse.app.domain.SectionKind
 import com.cyberpulse.app.tts.BriefingSpeaker
 import com.cyberpulse.app.ui.MainViewModel
+import com.cyberpulse.app.ui.Tab
+import com.cyberpulse.app.ui.components.TopicTunerDialog
 import com.cyberpulse.app.ui.components.Pill
 import com.cyberpulse.app.ui.theme.ExploitedColor
 import com.cyberpulse.app.ui.theme.Fsociety
@@ -90,7 +94,21 @@ fun BriefingScreen(
     val speakingKey by viewModel.speakingItemKey.collectAsStateWithLifecycle()
     val speakingText by viewModel.speakingText.collectAsStateWithLifecycle()
     val rate by viewModel.speechRate.collectAsStateWithLifecycle()
+    val topics by viewModel.topicRules.collectAsStateWithLifecycle()
+    val watch by viewModel.watchLevels.collectAsStateWithLifecycle()
+    var tuning by remember { mutableStateOf<BriefingItem?>(null) }
     val context = LocalContext.current
+
+    tuning?.let { item ->
+        TopicTunerDialog(
+            item = item,
+            rules = topics,
+            watch = watch,
+            onSetTopic = viewModel::setTopicLevel,
+            onSetSystem = viewModel::setWatchLevel,
+            onDismiss = { tuning = null },
+        )
+    }
 
     val rows = remember(briefing) {
         val b = briefing ?: return@remember emptyList()
@@ -151,6 +169,7 @@ fun BriefingScreen(
                                 active = row.item.key == speakingKey,
                                 onOpen = { onOpenLink(row.item.link) },
                                 onReadFrom = { viewModel.playFrom(row.item.key) },
+                                onTune = { tuning = row.item },
                             )
                         }
                     }
@@ -280,6 +299,19 @@ private fun BriefingHeader(briefing: Briefing, viewModel: MainViewModel) {
             Pill("${s.newCves} NEW CVES", Fsociety.White)
             Pill("${s.newsStories} STORIES", Fsociety.Grey)
         }
+        val topics by viewModel.topicRules.collectAsStateWithLifecycle()
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                if (topics.isEmpty) "> tune topics with [⋯] on any card"
+                else "> topics: ${topics.flaggedCount} flagged · ${topics.suppressedCount} suppressed",
+                style = MaterialTheme.typography.bodySmall,
+                color = Fsociety.Grey,
+                modifier = Modifier.weight(1f),
+            )
+            if (!topics.isEmpty) {
+                TerminalButton("manage", color = Fsociety.Green, onClick = { viewModel.selectTab(Tab.SYSTEMS) })
+            }
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 if (enabled) "> daily notification at" else "> daily notification off",
@@ -324,14 +356,24 @@ private fun SectionTitle(section: BriefingSection) {
         "// ${section.title.lowercase()} [${section.items.size}]",
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold,
-        color = if (section.kind == SectionKind.YOUR_SYSTEMS || section.kind == SectionKind.EXPLOITED) Fsociety.RedGlow else Fsociety.White,
+        color = when (section.kind) {
+            SectionKind.YOUR_SYSTEMS, SectionKind.EXPLOITED -> Fsociety.RedGlow
+            SectionKind.FOLLOWED_TOPICS -> Fsociety.Green
+            else -> Fsociety.White
+        },
         modifier = Modifier.padding(start = 4.dp, top = 12.dp),
     )
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun BriefingCard(item: BriefingItem, active: Boolean, onOpen: () -> Unit, onReadFrom: () -> Unit) {
+private fun BriefingCard(
+    item: BriefingItem,
+    active: Boolean,
+    onOpen: () -> Unit,
+    onReadFrom: () -> Unit,
+    onTune: () -> Unit,
+) {
     OutlinedCard(
         onClick = onOpen,
         modifier = Modifier.fillMaxWidth(),
@@ -378,6 +420,13 @@ private fun BriefingCard(item: BriefingItem, active: Boolean, onOpen: () -> Unit
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            if (item.followedTopics.isNotEmpty()) {
+                Text(
+                    "★ " + item.followedTopics.joinToString(" · ") { it.display },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Fsociety.Green,
+                )
+            }
             if (item.systemTypes.isNotEmpty()) {
                 Text(
                     item.systemTypes.joinToString(" ") { "#" + it.label.lowercase() },
@@ -394,6 +443,7 @@ private fun BriefingCard(item: BriefingItem, active: Boolean, onOpen: () -> Unit
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
+                TerminalButton("⋯", color = Fsociety.Grey, onClick = onTune)
                 TerminalButton(if (active) "reading" else "▶ from here", color = Fsociety.Green, onClick = onReadFrom)
             }
         }

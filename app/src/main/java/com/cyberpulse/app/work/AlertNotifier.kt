@@ -64,6 +64,7 @@ object AlertNotifier {
             .forEach { (section, item) ->
                 val tag = when (section.kind) {
                     SectionKind.YOUR_SYSTEMS -> "[target] "
+                    SectionKind.FOLLOWED_TOPICS -> "[topic] "
                     SectionKind.EXPLOITED -> "[exploited] "
                     SectionKind.CRITICAL -> "[critical] "
                     else -> ""

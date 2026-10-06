@@ -13,6 +13,7 @@ import com.cyberpulse.app.domain.Briefing
 import com.cyberpulse.app.domain.BriefingBuilder
 import com.cyberpulse.app.domain.BriefingScript
 import com.cyberpulse.app.domain.SpeechSegment
+import com.cyberpulse.app.domain.Topic
 import com.cyberpulse.app.tts.BriefingSpeaker
 import com.cyberpulse.app.work.DailyBriefingWorker
 import kotlinx.coroutines.Dispatchers
@@ -43,6 +44,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val notifyMode = settings.notifyMode
     val minSeverity = settings.minSeverity
 
+    val topicRules = settings.topicRules
     val speechRate = settings.speechRate
     val briefingEnabled = settings.briefingEnabled
     val briefingTime = settings.briefingTime
@@ -54,8 +56,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val briefing: StateFlow<Briefing?> = combine(
         repository.observeSince(System.currentTimeMillis() - BriefingBuilder.WINDOW_MILLIS),
         watchLevels,
-    ) { recent, watch ->
-        BriefingBuilder.build(recent, watch)
+        topicRules,
+    ) { recent, watch, topics ->
+        BriefingBuilder.build(recent, watch, topics = topics)
     }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -170,6 +173,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         settings.setBriefingTime(minutesOfDay)
         DailyBriefingWorker.schedule(getApplication(), settings, replace = true)
     }
+
+    fun setTopicLevel(topic: Topic, level: WatchLevel) = settings.setTopicLevel(topic, level)
 
     fun setWatchLevel(type: SystemType, level: WatchLevel) = settings.setWatchLevel(type, level)
     fun setAlertsEnabled(enabled: Boolean) = settings.setAlertsEnabled(enabled)

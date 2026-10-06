@@ -24,9 +24,11 @@ data class BriefingItem(
     val hasCoverage: Boolean,
     /** For a group of CVE records in one product: the product name. */
     val product: String? = null,
+    /** Flagged topics this item matches. */
+    val followedTopics: List<Topic> = emptyList(),
 )
 
-enum class SectionKind { YOUR_SYSTEMS, EXPLOITED, CRITICAL, TOP_STORIES, CATEGORY }
+enum class SectionKind { YOUR_SYSTEMS, FOLLOWED_TOPICS, EXPLOITED, CRITICAL, TOP_STORIES, CATEGORY }
 
 data class BriefingSection(
     val kind: SectionKind,
@@ -59,6 +61,7 @@ object BriefingBuilder {
     val WINDOW_MILLIS = TimeUnit.HOURS.toMillis(24)
 
     private const val MAX_YOURS = 5
+    private const val MAX_FOLLOWED = 5
     private const val MAX_EXPLOITED = 4
     private const val MAX_CRITICAL = 3
     private const val MAX_TOP = 5
@@ -69,14 +72,17 @@ object BriefingBuilder {
         watch: Map<SystemType, WatchLevel>,
         now: Long = System.currentTimeMillis(),
         windowMillis: Long = WINDOW_MILLIS,
+        topics: TopicRules = TopicRules.EMPTY,
     ): Briefing {
         val windowStart = now - windowMillis
         val recent = articles.filter { it.publishedAt in windowStart..now }
-        // Suppression only applies to vulnerabilities; general news is never hidden.
-        val visible = recent.filterNot {
-            it.category == NewsCategory.VULNERABILITIES && VulnPolicy.isSuppressed(it, watch)
+        // Specific beats broad: a suppressed topic (e.g. one product) hides an item even on a flagged
+        // system type; only a flagged topic overrides it. System suppression applies to vulnerabilities.
+        val visible = recent.filterNot { a ->
+            topics.flaggedMatches(a).isEmpty() && (topics.isSuppressed(a) ||
+                (a.category == NewsCategory.VULNERABILITIES && VulnPolicy.isSuppressed(a, watch)))
         }
-        val items = cluster(visible).map { toItem(it, watch) }
+        val items = cluster(visible).map { toItem(it, watch, topics) }
 
         val used = hashSetOf<String>()
         val sections = mutableListOf<BriefingSection>()
@@ -92,6 +98,10 @@ object BriefingBuilder {
 
         val vulns = items.filter { it.isVulnerability }.sortedWith(VULN_RANK)
         section(SectionKind.YOUR_SYSTEMS, "Affecting your systems", vulns.filter { it.flagged }, MAX_YOURS)
+        section(
+            SectionKind.FOLLOWED_TOPICS, "Topics you follow",
+            items.filter { it.followedTopics.isNotEmpty() }.sortedWith(STORY_RANK), MAX_FOLLOWED,
+        )
         section(SectionKind.EXPLOITED, "Actively exploited", vulns.filter { it.knownExploited }, MAX_EXPLOITED)
         section(SectionKind.CRITICAL, "Critical vulnerabilities", vulns.filter { it.severity == Severity.CRITICAL }, MAX_CRITICAL)
 
@@ -196,14 +206,14 @@ object BriefingBuilder {
     private val NOT_PRODUCTS = setOf("a", "an", "the", "this", "multiple", "an issue", "a flaw", "a vulnerability")
 
     /** Best-effort product name from a CVE headline, e.g. "Dell Container Storage Modules, versions…" -> "Dell Container Storage Modules". */
-    internal fun productOf(cveTitle: String): String? {
+    fun productOf(cveTitle: String): String? {
         val rest = FINDING_PREFIX.replace(cveTitle.removeSuffix("…"), "")
         val end = PRODUCT_END.find(rest)?.range?.first ?: return null
         val product = rest.substring(0, end).trim()
         return product.takeIf { it.length >= 4 && it.split(' ').size <= 8 && it.lowercase() !in NOT_PRODUCTS }
     }
 
-    private fun toItem(members: List<Article>, watch: Map<SystemType, WatchLevel>): BriefingItem {
+    private fun toItem(members: List<Article>, watch: Map<SystemType, WatchLevel>, topics: TopicRules): BriefingItem {
         // Prefer a human-written headline over a raw CVE description.
         val lead = members.firstOrNull { it.kind == ItemKind.NEWS }
             ?: members.firstOrNull { it.kind == ItemKind.ADVISORY }
@@ -230,6 +240,7 @@ object BriefingBuilder {
             isVulnerability = members.any { it.category == NewsCategory.VULNERABILITIES },
             hasCoverage = members.any { it.kind != ItemKind.CVE },
             product = product,
+            followedTopics = if (topics.isEmpty) emptyList() else members.flatMap { topics.flaggedMatches(it) }.distinctBy { it.key },
         )
     }
 }

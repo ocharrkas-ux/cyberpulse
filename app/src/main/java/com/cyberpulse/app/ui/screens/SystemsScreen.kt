@@ -41,6 +41,8 @@ import com.cyberpulse.app.domain.Severity
 import com.cyberpulse.app.domain.SystemType
 import com.cyberpulse.app.domain.WatchLevel
 import com.cyberpulse.app.ui.MainViewModel
+import com.cyberpulse.app.ui.components.CustomKeywordRow
+import com.cyberpulse.app.ui.components.TopicRuleList
 import com.cyberpulse.app.work.AlertNotifier
 import java.util.concurrent.TimeUnit
 
@@ -53,6 +55,7 @@ fun SystemsScreen(viewModel: MainViewModel, articles: List<Article>, modifier: M
     val alertsEnabled by viewModel.alertsEnabled.collectAsStateWithLifecycle()
     val notifyMode by viewModel.notifyMode.collectAsStateWithLifecycle()
     val minSeverity by viewModel.minSeverity.collectAsStateWithLifecycle()
+    val topicRules by viewModel.topicRules.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -125,6 +128,21 @@ fun SystemsScreen(viewModel: MainViewModel, articles: List<Article>, modifier: M
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                }
+            }
+        }
+
+        item {
+            OutlinedCard(Modifier.fillMaxWidth(), colors = CardDefaults.outlinedCardColors(containerColor = Fsociety.Panel), border = BorderStroke(1.dp, Fsociety.Line)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("// briefing topics", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Flagged topics get their own briefing section. Suppressed ones are left out of the briefing and the daily notification, even on flagged systems.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TopicRuleList(topicRules, viewModel::setTopicLevel)
+                    CustomKeywordRow(viewModel::setTopicLevel)
                 }
             }
         }
